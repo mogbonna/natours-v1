@@ -6,12 +6,12 @@ export const leaveReview = async (review, rating, tour, user) => {
   try {
     const res = await axios({
       method: 'POST',
-      url: `http://127.0.0.1:3000/api/v1/tours/${tour}/reviews`,
+      url: `/api/v1/tours/${tour}/reviews`,
       data: {
         review,
         rating,
         tour,
-        user
+        user,
       },
     });
 

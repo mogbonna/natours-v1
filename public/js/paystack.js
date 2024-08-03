@@ -6,9 +6,7 @@ export const bookTour = async (tourId) => {
   // console.log('Booking tour with ID:', tourId);
   try {
     // 1) Get checkout session from API
-    const response = await axios(
-      `http://127.0.0.1:3000/api/v1/bookings/checkout-session/${tourId}`,
-    );
+    const response = await axios(`/api/v1/bookings/checkout-session/${tourId}`);
     console.log('API response:', response.data);
 
     // 2) Redirect to Paystack checkout
