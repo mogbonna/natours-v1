@@ -1,0 +1,347 @@
+const fs = require('fs');
+const express = require('express');
+const morgan = require('morgan');
+
+const app = express();
+
+// MIDDLEWARES
+app.use(morgan('dev'));
+app.use(express.json());
+
+app.use((req, res, next) => {
+  console.log('Hello from the middleware!👋');
+  next();
+});
+app.use((req, res, next) => {
+  req.requestTime = new Date().toISOString();
+  next();
+});
+
+const tours = JSON.parse(
+  fs.readFileSync(`${__dirname}/dev-data/data/tours-simple.json`)
+);
+
+// ROUTES HANDLERS
+const getAllTours = (req, res) => {
+  console.log(req.requestTime);
+  res.status(200).json({
+    status: 'success',
+    requestedAt: req.requestTime,
+    results: tours.length,
+    data: { tours },
+  });
+};
+
+const getTour = (req, res) => {
+  console.log(req.params);
+  const id = req.params.id * 1;
+  const tour = tours.find((el) => el.id === id);
+
+  //   if (id > tours.length)
+  if (!tour) {
+    return res.status(404).json({ status: 'fail', message: 'Invalid ID' });
+  }
+
+  res.status(200).json({
+    status: 'success',
+    data: { tour },
+  });
+};
+
+const createTour = (req, res) => {
+  //   console.log(req.body);
+  const newId = tours[tours.length - 1].id + 1;
+  const newTour = Object.assign({ id: newId }, req.body);
+
+  tours.push(newTour);
+
+  fs.writeFile(
+    `${__dirname}/dev-data/data/tours-simple.json`,
+    JSON.stringify(tours),
+    (err) => {
+      res.status(201).json({
+        status: 'success',
+        data: { tour: newTour },
+      });
+    }
+  );
+};
+
+const updateTour = (req, res) => {
+  if (req.params.id * 1 > tours.length) {
+    return res.status(404).json({ status: 'fail', message: 'Invalid ID' });
+  }
+
+  res.status(200).json({
+    status: 'success',
+    data: '<Updated tour here...>',
+  });
+};
+
+const deleteTour = (req, res) => {
+  if (req.params.id * 1 > tours.length) {
+    return res.status(404).json({ status: 'fail', message: 'Invalid ID' });
+  }
+
+  res.status(204).json({
+    status: 'success',
+    data: null,
+  });
+};
+
+const getAllUsers = (req, res) => {
+  res.status(500).json({
+    status: 'error',
+    message: 'This route is not yet defined',
+  });
+};
+
+const getUser = (req, res) => {
+  res.status(500).json({
+    status: 'error',
+    message: 'This route is not yet defined',
+  });
+};
+
+const createUser = (req, res) => {
+  res.status(500).json({
+    status: 'error',
+    message: 'This route is not yet defined',
+  });
+};
+
+const updateUser = (req, res) => {
+  res.status(500).json({
+    status: 'error',
+    message: 'This route is not yet defined',
+  });
+};
+
+const deleteUser = (req, res) => {
+  res.status(500).json({
+    status: 'error',
+    message: 'This route is not yet defined',
+  });
+};
+
+// app.get('/api/v1/tours', getAllTours);
+// app.get('/api/v1/tours/:id', getTour);
+// app.post('/api/v1/tours', createTour);
+// app.patch('/api/v1/tours/:id', updateTour);
+// app.delete('/api/v1/tours/:id', deleteTour);
+
+// ROUTES
+
+const userRouter = express.Router();
+const tourRouter = express.Router();
+
+tourRouter.route('/').get(getAllTours).post(createTour);
+
+tourRouter.route('/:id').get(getTour).patch(updateTour).delete(deleteTour);
+
+userRouter.route('/').get(getAllUsers).post(createUser);
+
+userRouter.route('/:id').get(getUser).patch(updateUser).delete(deleteUser);
+
+app.use('/api/v1/tours', tourRouter);
+app.use('/api/v1/users', userRouter);
+
+// START THE SERVER
+const port = 3000;
+app.listen(port, () => {
+  console.log(`App listening on port ${port}...!`);
+});
+
+
+
+const mongoose = require('mongoose');
+const dotenv = require('dotenv');
+const app = require('./app');
+
+dotenv.config({ path: './config.env' });
+
+const DB = process.env.DATABASE.replace(
+  '<PASSWORD>',
+  process.env.DATABASE_PASSWORD,
+);
+
+// mongoose
+//   .connect(DB, {
+//     // just some options to deal with deprecation warnings.
+//     useNewUrlParser: true,
+//     useCreateIndex: true,
+//     useFindAndModify: false,
+//     useUnifiedTopology: true,
+//   })
+//   .then(() => console.log('DB connection successful!'));
+(async () => {
+  try {
+    await mongoose.connect(DB);
+    console.log('DB connection successful!');
+  } catch (err) {
+    console.error('DB connection error:', err);
+  }
+})();
+
+const tourSchema = new mongoose.Schema({
+  name: {
+    type: String,
+    required: [true, 'A tour must have a name'],
+    unique: true,
+  },
+  rating: {
+    type: Number,
+    default: 4.5,
+  },
+  price: {
+    type: Number,
+    required: [true, 'A tour must have a price'],
+  },
+});
+
+const Tour = mongoose.model('Tour', tourSchema);
+
+const testTour = new Tour({
+  name: 'The Park Camper',
+  price: 997,
+});
+
+testTour
+  .save()
+  .then((doc) => {
+    console.log(doc);
+  })
+  .catch((err) => {
+    console.log('Error 💥:', err);
+  });
+
+const port = process.env.PORT || 3000;
+app.listen(port, () => {
+  console.log(`App listening on port ${port}...!`);
+});
+
+
+tourcontroller
+
+const fs = require('fs');
+
+const tours = JSON.parse(
+  fs.readFileSync(`${__dirname}/../dev-data/data/tours-simple.json`)
+);
+
+exports.checkID = (req, res, next, val) => {
+  console.log(`Tour id is: ${val}`);
+  if (req.params.id * 1 > tours.length) {
+    return res.status(404).json({ status: 'fail', message: 'Invalid ID' });
+  }
+  next();
+};
+exports.checkBody = (req, res, next) => {
+  if (!req.body.name || !req.body.price) {
+    return res.status(404).json({
+      status: 'fail',
+      message: 'Missing Name or Price',
+    });
+  }
+  next();
+};
+
+// ROUTES HANDLERS
+exports.getAllTours = (req, res) => {
+  console.log(req.requestTime);
+  res.status(200).json({
+    status: 'success',
+    requestedAt: req.requestTime,
+    results: tours.length,
+    data: { tours },
+  });
+};
+
+exports.getTour = (req, res) => {
+  console.log(req.params);
+  const id = req.params.id * 1;
+  const tour = tours.find((el) => el.id === id);
+
+  res.status(200).json({
+    status: 'success',
+    data: { tour },
+  });
+};
+
+exports.createTour = (req, res) => {
+  //   console.log(req.body);
+  const newId = tours[tours.length - 1].id + 1;
+  const newTour = Object.assign({ id: newId }, req.body);
+
+  tours.push(newTour);
+
+  fs.writeFile(
+    `${__dirname}/dev-data/data/tours-simple.json`,
+    JSON.stringify(tours),
+    (err) => {
+      res.status(201).json({
+        status: 'success',
+        data: { tour: newTour },
+      });
+    }
+  );
+};
+
+exports.updateTour = (req, res) => {
+  res.status(200).json({
+    status: 'success',
+    data: '<Updated tour here...>',
+  });
+};
+
+exports.deleteTour = (req, res) => {
+  res.status(204).json({
+    status: 'success',
+    data: null,
+  });
+};
+
+
+// BUILD QUERY
+    // 1A) FILTERING
+    // const queryObj = { ...req.query };
+    // const exculedFields = ['page', 'sort', 'limit', 'fields'];
+    // exculedFields.forEach((el) => delete queryObj[el]);
+
+    // // 1B) Advanced filtering
+    // let queryStr = JSON.stringify(queryObj);
+    // queryStr = queryStr.replace(/\b(gte|gt|lte|lt)\b/g, (match) => `$${match}`);
+    // // {duration: {$gte 5}, difficulty: 'easy'}
+    // // { duration: { gte: '5' }, difficulty: 'easy' }
+
+    // let query = Tour.find(JSON.parse(queryStr));
+
+    // 2)SORTING
+    // if (req.query.sort) {
+    //   const sortBy = req.query.sort.split(',').join(' ');
+    //   query = query.sort(sortBy);
+    //   // sort: '-price ratingsAverage';
+    // } else {
+    //   query = query.sort('-createdAt');
+    // }
+
+    // 3)Fields Limiting
+    // if (req.query.fields) {
+    //   const fields = req.query.fields.split(',').join(' ');
+    //   query = query.select(fields);
+    //   // sort: '-price ratingsAverage';
+    // } else {
+    //   query = query.select('-__v');
+    // }
+
+    // 4) Pagination
+    // const page = req.query.page * 1 || 1;
+    // const limit = req.query.limit * 1 || 100;
+    // const skip = (page - 1) * limit;
+
+    // query = query.skip(skip).limit(limit);
+
+    // if (req.query.page) {
+    //   const numTours = await Tour.countDocuments();
+    //   if (skip >= numTours) throw new Error('This page does not exit');
+    // }
