@@ -8,7 +8,7 @@ const router = express.Router();
 router.get(
   '/',
   authController.isLoggedIn,
-  bookingController.createBookingCheckout,
+  // bookingController.createBookingCheckout,
   viewsController.getOverview,
 );
 
@@ -19,7 +19,7 @@ router.get('/me', authController.protect, viewsController.getAccount);
 
 router.get(
   '/my-tours',
-  bookingController.createBookingCheckout,
+  // bookingController.createBookingCheckout,
   authController.protect,
   viewsController.getMyTours,
 );

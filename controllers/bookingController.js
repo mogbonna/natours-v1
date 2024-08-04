@@ -1,4 +1,5 @@
 const paystack = require('paystack')(process.env.PAYSTACK_SECRET_KEY);
+const crypto = require('crypto');
 const Tour = require('../models/tourModel');
 const Booking = require('../models/bookingModel');
 const catchAsync = require('../utils/catchAsync');
@@ -12,7 +13,7 @@ exports.getCheckoutSession = catchAsync(async (req, res, next) => {
   const reference = `${req.params.tourId}-${Date.now()}`;
 
   // 3) Define the callback URL
-  const callbackUrl = `${req.protocol}://${req.get('host')}/?tour=${req.params.tourId}&user=${req.user.id}&price=${tour.price}`;
+  const callbackUrl = `${req.protocol}://${req.get('host')}/my-tours`;
   console.log(callbackUrl);
 
   // 4) Initialize Paystack transaction
@@ -52,15 +53,53 @@ exports.getCheckoutSession = catchAsync(async (req, res, next) => {
   });
 });
 
-exports.createBookingCheckout = catchAsync(async (req, res, next) => {
-  // This is only TEMPORARY, because it's UNSECURE: everyone can make bookings without paying
-  const { tour, user, price } = req.query;
+const createBookingCheckout = async (data) => {
+  try {
+    // Extract relevant information from Paystack data
+    const { reference, amount, customer } = data;
 
-  if (!tour && !user && !price) return next();
-  await Booking.create({ tour, user, price });
+    // Assuming you have a Booking model
+    const booking = await Booking.create({
+      reference: reference,
+      amount: amount / 100, // Paystack amount is in kobo, convert to naira
+      customer: customer.email,
+      // Add other relevant fields
+    });
 
-  res.redirect(req.originalUrl.split('?')[0]);
-});
+    console.log('Booking created:', booking);
+  } catch (error) {
+    console.error('Error creating booking:', error);
+  }
+};
+
+exports.webhookCheckout = (req, res, next) => {
+  // Retrieve the request's body
+  const body = req.body;
+
+  // Validate event
+  const hash = crypto
+    .createHmac('sha512', process.env.PAYSTACK_SECRET_KEY)
+    .update(JSON.stringify(body))
+    .digest('hex');
+
+  if (hash !== req.headers['x-paystack-signature']) {
+    return res.status(400).send('Invalid signature');
+  }
+
+  const event = body;
+
+  // Handle the event
+  switch (event.event) {
+    case 'charge.success':
+      createBookingCheckout(event.data);
+      break;
+    default:
+      console.log(`Unhandled event type: ${event.event}`);
+  }
+
+  // Return a response to acknowledge receipt of the event
+  res.status(200).json({ received: true });
+};
 
 exports.checkIfBooked = catchAsync(async (req, res, next) => {
   // To check if booked was bought by user who wants to review it

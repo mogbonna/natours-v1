@@ -43,6 +43,7 @@ export const logout = async () => {
   }
 };
 
+//
 export const signup = async (name, email, password, passwordConfirm) => {
   try {
     const res = await axios({
@@ -59,7 +60,7 @@ export const signup = async (name, email, password, passwordConfirm) => {
       showAlert('success', 'account created successfully');
       window.setTimeout(() => {
         location.assign('/login');
-      }, 1000);
+      }, 1500);
     }
   } catch (err) {
     showAlert('error', err.response.data.message);
