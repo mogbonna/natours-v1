@@ -96,11 +96,11 @@ block content
       .login-form 
         h2.heading-secondary.ma-bt-lg Leave a Review 
         form.form.review__form(data-ids=`${JSON.stringify({user: user.id, tour:tour.id})}`)
-          form__group.ma-bt-md
+          .form__group.ma-bt-md
           label.form__label(for='review') Review
           input#review.form__input(type='text',  required)
-          form__group.ma-bt-md
+          .form__group.ma-bt-md
           label.form__label(for='rating') Rating(1-5)
           input#rating.form__input(type='number',min='1', max='5'  required)
-        .form__group
+          .form__group
           button.btn.btn--green Submit Review
