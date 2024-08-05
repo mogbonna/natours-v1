@@ -3,6 +3,8 @@ const User = require('../models/userModel');
 const Booking = require('../models/bookingModel');
 const catchAsync = require('../utils/catchAsync');
 const AppError = require('../utils/appError');
+const paystack = require('paystack')(process.env.PAYSTACK_SECRET_KEY);
+const { createBookingCheckout } = require('./bookingController');
 
 exports.getOverview = catchAsync(async (req, res, next) => {
   // 1) Get tour data from collection
@@ -69,7 +71,27 @@ exports.getAccount = (req, res) => {
 };
 
 exports.getMyTours = catchAsync(async (req, res, next) => {
-  // 1) Find all bookings
+  const { reference } = req.query;
+
+  if (reference) {
+    // 1) Verify the transaction with Paystack
+    const verificationResponse = await paystack.transaction.verify(reference);
+
+    if (
+      verificationResponse.status === true &&
+      verificationResponse.data.status === 'success'
+    ) {
+      // 2) Create the booking in the database
+      await createBookingCheckout(verificationResponse.data);
+
+      // 3) Redirect to the clean URL
+      return res.redirect('/my-tours');
+    } else {
+      return res.status(400).send('Payment verification failed');
+    }
+  }
+
+  // 4) Find all user's bookings
   const bookings = await Booking.find({ user: req.user.id });
 
   // 2) Find tours with the returned IDs

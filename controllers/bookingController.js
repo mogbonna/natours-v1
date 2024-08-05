@@ -1,9 +1,11 @@
 const paystack = require('paystack')(process.env.PAYSTACK_SECRET_KEY);
 const crypto = require('crypto');
 const Tour = require('../models/tourModel');
+const User = require('../models/userModel');
 const Booking = require('../models/bookingModel');
 const catchAsync = require('../utils/catchAsync');
 const factory = require('./handlerFactory');
+const AppError = require('../utils/appError');
 
 exports.getCheckoutSession = catchAsync(async (req, res, next) => {
   // 1) Get the currently booked tour
@@ -12,15 +14,13 @@ exports.getCheckoutSession = catchAsync(async (req, res, next) => {
   // 2) Create a unique reference for the transaction
   const reference = `${req.params.tourId}-${Date.now()}`;
 
-  // 3) Define the callback URL
+  // 3) Define the callback URL with the reference parameter
   const callbackUrl = `${req.protocol}://${req.get('host')}/my-tours`;
-  console.log(callbackUrl);
 
   // 4) Initialize Paystack transaction
   const response = await paystack.transaction.initialize({
     email: req.user.email,
     amount: tour.price * 100, // Amount in kobo
-    // currency: 'NGN',
     reference: reference,
     callback_url: callbackUrl,
     metadata: {
@@ -38,7 +38,7 @@ exports.getCheckoutSession = catchAsync(async (req, res, next) => {
         {
           display_name: 'Tour Image',
           variable_name: 'tour_image',
-          value: `https://www.natours.dev/img/tours/${tour.imageCover}`,
+          value: `${req.protocol}://${req.get('host')}/img/tours/${tour.imageCover}`,
         },
       ],
     },
@@ -55,15 +55,16 @@ exports.getCheckoutSession = catchAsync(async (req, res, next) => {
 
 const createBookingCheckout = async (data) => {
   try {
-    // Extract relevant information from Paystack data
     const { reference, amount, customer } = data;
 
-    // Assuming you have a Booking model
+    const tourId = reference.split('-')[0];
+    const user = await User.findOne({ email: customer.email });
+    const tour = await Tour.findById(tourId);
+
     const booking = await Booking.create({
-      reference: reference,
-      amount: amount / 100, // Paystack amount is in kobo, convert to naira
-      customer: customer.email,
-      // Add other relevant fields
+      tour: tourId,
+      user: user._id,
+      price: amount / 100, // Paystack amount is in kobo, convert to naira
     });
 
     console.log('Booking created:', booking);
@@ -71,6 +72,8 @@ const createBookingCheckout = async (data) => {
     console.error('Error creating booking:', error);
   }
 };
+
+exports.createBookingCheckout = createBookingCheckout;
 
 exports.webhookCheckout = (req, res, next) => {
   // Retrieve the request's body
@@ -91,7 +94,7 @@ exports.webhookCheckout = (req, res, next) => {
   // Handle the event
   switch (event.event) {
     case 'charge.success':
-      createBookingCheckout(event.data);
+      createBookingCheckout(event.data.reference);
       break;
     default:
       console.log(`Unhandled event type: ${event.event}`);
@@ -107,13 +110,15 @@ exports.checkIfBooked = catchAsync(async (req, res, next) => {
     user: req.user.id,
     tour: req.body.tour,
   });
-  if (booking.length === 0)
+
+  if (booking.length === 0) {
     return next(
       new AppError(
         'You need to purchase this tour in order to leave a review.',
         401,
       ),
     );
+  }
   next();
 });
 
